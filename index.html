@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC Motor Control Dashboard</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Real-time DC Motor Control and Monitoring Dashboard">
+    <meta name="theme-color" content="#0f3460">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Motor Control">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="icons/icon-384x384.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512x512.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-72x72.png">
+    
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-cog"></i> DC Motor Control Dashboard</h1>
+            <div class="connection-status">
+                <span id="mqtt-status" class="status-indicator disconnected">
+                    <i class="fas fa-wifi"></i>
+                    <span>Disconnected</span>
+                </span>
+            </div>
+        </header>
+
+        <main class="dashboard">
+            <!-- Control Panel -->
+            <section class="control-panel">
+                <div class="card">
+                    <h2><i class="fas fa-sliders-h"></i> Motor Control</h2>
+                    <div class="control-group">
+                        <label for="target-rpm">Target RPM</label>
+                        <div class="input-with-button">
+                            <input type="number" id="target-rpm" min="-350" max="350" value="0" step="0.1">
+                            <button id="set-rpm-btn" class="btn primary">
+                                <i class="fas fa-paper-plane"></i>
+                                Set RPM
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-controls">
+                        <button class="btn secondary" onclick="setQuickRPM(60)">60 RPM</button>
+                        <button class="btn secondary" onclick="setQuickRPM(0)">STOP</button>
+                        <button class="btn secondary" onclick="setQuickRPM(-60)">-60 RPM</button>
+                    </div>
+
+                    <div class="motor-direction">
+                        <span class="direction-label">Direction:</span>
+                        <span id="motor-direction" class="direction-value">STOPPED</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Real-time Data -->
+            <section class="data-display">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Current RPM</h3>
+                            <span id="current-rpm" class="metric-value">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Target RPM</h3>
+                            <span id="display-target-rpm" class="metric-value">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>PWM Value</h3>
+                            <span id="pwm-value" class="metric-value">0</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-percent"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Error %</h3>
+                            <span id="error-percent" class="metric-value">0.0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts -->
+            <section class="charts-section">
+                <div class="chart-container">
+                    <div class="card">
+                        <h3><i class="fas fa-chart-line"></i> RPM vs Time</h3>
+                        <canvas id="rpm-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="card">
+                        <h3><i class="fas fa-chart-area"></i> PWM vs Time</h3>
+                        <canvas id="pwm-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Info -->
+            <section class="system-info">
+                <div class="card">
+                    <h3><i class="fas fa-info-circle"></i> System Status</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Last Update:</span>
+                            <span id="last-update" class="info-value">Never</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Data Points:</span>
+                            <span id="data-points" class="info-value">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Install PWA Button (optional) -->
+    <div id="install-prompt" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f3460; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000;">
+        <span>Install this app for better experience!</span>
+        <button id="install-btn" style="margin-left: 15px; padding: 8px 15px; background: #e94560; border: none; color: white; border-radius: 5px; cursor: pointer;">Install</button>
+        <button id="dismiss-btn" style="margin-left: 10px; padding: 8px 15px; background: transparent; border: 1px solid white; color: white; border-radius: 5px; cursor: pointer;">Later</button>
+    </div>
+
+    <script src="script.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('✅ Service Worker registered successfully:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('🔄 New Service Worker version found');
+                            
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('✨ New content available, please refresh');
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('❌ Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installPrompt = document.getElementById('install-prompt');
+        const installBtn = document.getElementById('install-btn');
+        const dismissBtn = document.getElementById('dismiss-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show install prompt
+            installPrompt.style.display = 'block';
+            console.log('📱 PWA install prompt available');
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // Clear the deferredPrompt
+                deferredPrompt = null;
+                // Hide the install prompt
+                installPrompt.style.display = 'none';
+            }
+        });
+
+        dismissBtn.addEventListener('click', () => {
+            installPrompt.style.display = 'none';
+        });
+
+        // Detect if app is installed
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ PWA was installed successfully');
+            installPrompt.style.display = 'none';
+        });
+
+        // Log if running as PWA
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            console.log('🚀 Running as installed PWA');
+        }
+    </script>
+</body>
+</html>

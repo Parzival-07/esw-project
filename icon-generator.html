@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        canvas {
+            border: 2px solid #0f3460;
+            margin: 20px 0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #c73852;
+        }
+        .instructions {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .icon-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 PWA Icon Generator for Motor Control Dashboard</h1>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>The canvas below shows a preview of your app icon</li>
+                <li>Click the buttons below to download icons in all required sizes</li>
+                <li>Save the downloaded images to an <code>icons/</code> folder in your project</li>
+                <li>All sizes are generated automatically (72x72 to 512x512)</li>
+            </ol>
+        </div>
+
+        <canvas id="iconCanvas" width="512" height="512"></canvas>
+        
+        <div>
+            <button onclick="generateAllIcons()">📥 Download All Icon Sizes</button>
+        </div>
+
+        <div class="icon-preview" id="previewContainer"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('iconCanvas');
+        const ctx = canvas.getContext('2d');
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+
+        // Draw the icon design
+        function drawIcon(size) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = size;
+            tempCanvas.height = size;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Background gradient
+            const gradient = tempCtx.createLinearGradient(0, 0, 0, size);
+            gradient.addColorStop(0, '#0f3460');
+            gradient.addColorStop(1, '#1a1a2e');
+            tempCtx.fillStyle = gradient;
+            tempCtx.fillRect(0, 0, size, size);
+
+            // Draw gear icon (simplified)
+            tempCtx.fillStyle = '#e94560';
+            tempCtx.beginPath();
+            tempCtx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2);
+            tempCtx.fill();
+
+            // Draw center circle
+            tempCtx.fillStyle = '#16213e';
+            tempCtx.beginPath();
+            tempCtx.arc(size / 2, size / 2, size * 0.15, 0, Math.PI * 2);
+            tempCtx.fill();
+
+            // Draw gear teeth
+            tempCtx.fillStyle = '#e94560';
+            const teeth = 8;
+            for (let i = 0; i < teeth; i++) {
+                const angle = (Math.PI * 2 * i) / teeth;
+                const x = size / 2 + Math.cos(angle) * size * 0.35;
+                const y = size / 2 + Math.sin(angle) * size * 0.35;
+                
+                tempCtx.beginPath();
+                tempCtx.arc(x, y, size * 0.08, 0, Math.PI * 2);
+                tempCtx.fill();
+            }
+
+            // Add text/label for larger icons
+            if (size >= 192) {
+                tempCtx.fillStyle = 'white';
+                tempCtx.font = `bold ${size * 0.08}px Arial`;
+                tempCtx.textAlign = 'center';
+                tempCtx.textBaseline = 'middle';
+                tempCtx.fillText('MOTOR', size / 2, size * 0.85);
+            }
+
+            return tempCanvas;
+        }
+
+        // Draw preview (512x512)
+        function drawPreview() {
+            const previewCanvas = drawIcon(512);
+            ctx.drawImage(previewCanvas, 0, 0);
+        }
+
+        // Generate and download all icon sizes
+        function generateAllIcons() {
+            sizes.forEach(size => {
+                const iconCanvas = drawIcon(size);
+                
+                // Convert to blob and download
+                iconCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `icon-${size}x${size}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            });
+
+            alert(`Generating ${sizes.length} icon files! Check your downloads folder.\n\nCreate an 'icons' folder in your project and move all downloaded icons there.`);
+        }
+
+        // Initialize preview
+        drawPreview();
+    </script>
+</body>
+</html>

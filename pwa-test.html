@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Status Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a2e;
+            color: white;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status-card {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #e94560;
+        }
+        .success { border-left-color: #4caf50; }
+        .error { border-left-color: #f44336; }
+        .warning { border-left-color: #ff9800; }
+        .icon { font-size: 24px; margin-right: 10px; }
+        h1 { color: #e94560; }
+        h3 { margin-top: 0; }
+        code {
+            background: #16213e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        button {
+            padding: 10px 20px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #c73852;
+        }
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+        .checklist li {
+            padding: 8px 0;
+        }
+        .check { color: #4caf50; }
+        .cross { color: #f44336; }
+    </style>
+</head>
+<body>
+    <h1>🔍 PWA Status Checker</h1>
+    <p>This page helps you verify that your PWA is set up correctly.</p>
+
+    <button onclick="checkStatus()">🔄 Refresh Status</button>
+    <button onclick="window.location.href='index.html'">← Back to Dashboard</button>
+
+    <div id="statusContainer"></div>
+
+    <script>
+        function checkStatus() {
+            const container = document.getElementById('statusContainer');
+            container.innerHTML = '';
+
+            const checks = [];
+
+            // Check HTTPS or localhost
+            const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            checks.push({
+                name: 'Secure Context (HTTPS/Localhost)',
+                status: isSecure,
+                message: isSecure 
+                    ? 'Running on secure context ✓' 
+                    : 'PWA requires HTTPS or localhost. Deploy to a secure server.',
+                type: isSecure ? 'success' : 'error'
+            });
+
+            // Check Service Worker support
+            const swSupported = 'serviceWorker' in navigator;
+            checks.push({
+                name: 'Service Worker Support',
+                status: swSupported,
+                message: swSupported 
+                    ? 'Browser supports Service Workers ✓' 
+                    : 'Browser does not support Service Workers',
+                type: swSupported ? 'success' : 'error'
+            });
+
+            // Check if Service Worker is registered
+            if (swSupported) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    const hasRegistration = registrations.length > 0;
+                    addStatusCard({
+                        name: 'Service Worker Registration',
+                        status: hasRegistration,
+                        message: hasRegistration 
+                            ? `Service Worker registered (${registrations.length} active)` 
+                            : 'Service Worker not registered yet. Load the main dashboard first.',
+                        type: hasRegistration ? 'success' : 'warning'
+                    });
+
+                    if (hasRegistration) {
+                        registrations.forEach((reg, index) => {
+                            addStatusCard({
+                                name: `Service Worker ${index + 1} Details`,
+                                status: true,
+                                message: `
+                                    <strong>Scope:</strong> ${reg.scope}<br>
+                                    <strong>Active:</strong> ${reg.active ? '✓ Yes' : '✗ No'}<br>
+                                    <strong>Installing:</strong> ${reg.installing ? 'Yes' : 'No'}<br>
+                                    <strong>Waiting:</strong> ${reg.waiting ? 'Yes' : 'No'}
+                                `,
+                                type: 'success'
+                            });
+                        });
+                    }
+                });
+            }
+
+            // Check manifest
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            checks.push({
+                name: 'Web App Manifest',
+                status: !!manifestLink,
+                message: manifestLink 
+                    ? `Manifest found: <code>${manifestLink.href}</code>` 
+                    : 'Manifest link not found in HTML',
+                type: manifestLink ? 'success' : 'error'
+            });
+
+            // Check if app is installable
+            checks.push({
+                name: 'BeforeInstallPrompt Support',
+                status: window.hasOwnProperty('onbeforeinstallprompt'),
+                message: window.hasOwnProperty('onbeforeinstallprompt')
+                    ? 'Browser supports install prompt ✓'
+                    : 'Browser may not support install prompt (iOS Safari uses different method)',
+                type: window.hasOwnProperty('onbeforeinstallprompt') ? 'success' : 'warning'
+            });
+
+            // Check if running as PWA
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                               window.navigator.standalone === true;
+            checks.push({
+                name: 'Running as PWA',
+                status: isStandalone,
+                message: isStandalone 
+                    ? '🎉 App is running as installed PWA!' 
+                    : 'App is running in browser (not installed yet)',
+                type: isStandalone ? 'success' : 'warning'
+            });
+
+            // Check cache storage
+            if ('caches' in window) {
+                caches.keys().then(cacheNames => {
+                    const hasCaches = cacheNames.length > 0;
+                    addStatusCard({
+                        name: 'Cache Storage',
+                        status: hasCaches,
+                        message: hasCaches 
+                            ? `${cacheNames.length} cache(s) found: ${cacheNames.join(', ')}` 
+                            : 'No caches found yet. Visit the dashboard to populate cache.',
+                        type: hasCaches ? 'success' : 'warning'
+                    });
+
+                    // Show cache contents
+                    if (hasCaches) {
+                        cacheNames.forEach(cacheName => {
+                            caches.open(cacheName).then(cache => {
+                                cache.keys().then(requests => {
+                                    const urls = requests.map(req => new URL(req.url).pathname).join(', ');
+                                    addStatusCard({
+                                        name: `Cache: ${cacheName}`,
+                                        status: true,
+                                        message: `${requests.length} items cached: ${urls.substring(0, 200)}${urls.length > 200 ? '...' : ''}`,
+                                        type: 'success'
+                                    });
+                                });
+                            });
+                        });
+                    }
+                });
+            }
+
+            // Display initial checks
+            checks.forEach(check => addStatusCard(check));
+
+            // Add recommendations
+            addStatusCard({
+                name: '📋 Next Steps',
+                status: true,
+                message: `
+                    <ul class="checklist">
+                        <li>1. Generate icons using <code>icon-generator.html</code></li>
+                        <li>2. Place icons in the <code>icons/</code> folder</li>
+                        <li>3. Run on HTTPS or localhost with a web server</li>
+                        <li>4. Open <code>index.html</code> to activate Service Worker</li>
+                        <li>5. Test installation on mobile device</li>
+                        <li>6. Check DevTools → Application → Manifest & Service Workers</li>
+                    </ul>
+                `,
+                type: 'warning'
+            });
+        }
+
+        function addStatusCard(check) {
+            const container = document.getElementById('statusContainer');
+            const card = document.createElement('div');
+            card.className = `status-card ${check.type}`;
+            card.innerHTML = `
+                <h3>
+                    <span class="icon">${check.status ? '✅' : '❌'}</span>
+                    ${check.name}
+                </h3>
+                <p>${check.message}</p>
+            `;
+            container.appendChild(card);
+        }
+
+        // Run check on load
+        checkStatus();
+
+        // Check for updates every 5 seconds
+        setInterval(() => {
+            // Silent check for service worker changes
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(reg => {
+                        reg.update();
+                    });
+                });
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
