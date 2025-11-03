@@ -50,27 +50,70 @@
             <!-- Control Panel -->
             <section class="control-panel">
                 <div class="card">
-                    <h2><i class="fas fa-sliders-h"></i> Motor Control</h2>
+                    <h2><i class="fas fa-sliders-h"></i> Setup & Control</h2>
+
+                    <!-- Step 1: Calibration -->
                     <div class="control-group">
-                        <label for="target-rpm">Target RPM</label>
+                        <label>Step 1: Calibrate (Autotune)</label>
+                        <div class="tune-status">
+                            <span>
+                                <strong>Status:</strong>
+                                <span id="calibration-state">Not started</span>
+                            </span>
+                            <button id="start-calibration-btn" class="btn primary">
+                                <i class="fas fa-robot"></i>
+                                Start Calibration
+                            </button>
+                        </div>
+                        <div id="calibration-info" class="tune-info" style="display:none;">
+                            <span id="calibration-message">Autotuning in progress…</span>
+                            <div id="calibration-gains" style="margin-top:8px; font-family:monospace;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Mode Selection -->
+                    <div class="control-group">
+                        <label>Step 2: Choose Control Mode</label>
+                        <div class="quick-controls">
+                            <button id="mode-rpm-btn" class="btn secondary" disabled>
+                                <i class="fas fa-gauge-high"></i>
+                                RPM (Speed)
+                            </button>
+                            <button id="mode-position-btn" class="btn secondary" disabled>
+                                <i class="fas fa-compass"></i>
+                                Position (Angle)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Provide Input -->
+                    <div class="control-group" id="rpm-controls" style="display:none;">
+                        <label for="target-rpm-input">Step 3: Set Target RPM</label>
                         <div class="input-with-button">
-                            <input type="number" id="target-rpm" min="-350" max="350" value="0" step="0.1">
-                            <button id="set-rpm-btn" class="btn primary">
+                            <input type="number" id="target-rpm-input" min="-350" max="350" value="0" step="0.1" disabled>
+                            <button id="send-rpm-btn" class="btn primary" disabled>
                                 <i class="fas fa-paper-plane"></i>
                                 Set RPM
                             </button>
                         </div>
                     </div>
-                    
-                    <div class="quick-controls">
-                        <button class="btn secondary" onclick="setQuickRPM(60)">60 RPM</button>
-                        <button class="btn secondary" onclick="setQuickRPM(0)">STOP</button>
-                        <button class="btn secondary" onclick="setQuickRPM(-60)">-60 RPM</button>
+
+                    <div class="control-group" id="position-controls" style="display:none;">
+                        <label for="target-angle-input">Step 3: Set Target Angle (°)</label>
+                        <div class="input-with-button">
+                            <input type="number" id="target-angle-input" min="-720" max="720" value="0" step="1" disabled>
+                            <button id="send-angle-btn" class="btn primary" disabled>
+                                <i class="fas fa-location-arrow"></i>
+                                Set Angle
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="motor-direction">
-                        <span class="direction-label">Direction:</span>
-                        <span id="motor-direction" class="direction-value">STOPPED</span>
+                    <div class="quick-controls">
+                        <button id="stop-btn" class="btn secondary" disabled>
+                            <i class="fas fa-stop"></i>
+                            STOP
+                        </button>
                     </div>
                 </div>
             </section>
@@ -113,8 +156,48 @@
                             <i class="fas fa-percent"></i>
                         </div>
                         <div class="metric-content">
-                            <h3>Error %</h3>
+                            <h3>RPM Error %</h3>
                             <span id="error-percent" class="metric-value">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-toggle-on"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Mode</h3>
+                            <span id="display-mode" class="metric-value">Speed</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-compass"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Current Angle (°)</h3>
+                            <span id="current-angle" class="metric-value">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Target Angle (°)</h3>
+                            <span id="target-angle" class="metric-value">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-ruler-combined"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3>Angle Error (°)</h3>
+                            <span id="angle-error" class="metric-value">0.0</span>
                         </div>
                     </div>
                 </div>
@@ -148,6 +231,10 @@
                         <div class="info-item">
                             <span class="info-label">Data Points:</span>
                             <span id="data-points" class="info-value">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">ESP32 Status:</span>
+                            <span id="esp32-status" class="info-value">Unknown</span>
                         </div>
                     </div>
                 </div>

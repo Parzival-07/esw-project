@@ -20,6 +20,10 @@ let rpmChart = null;
 let pwmChart = null;
 let dataPoints = 0;
 let lastUpdateTime = null;
+// UI/Flow state
+let calibrationInProgress = false;
+let calibrationDone = false;
+let selectedMode = null; // 'Speed' or 'Position'
 
 // Chart configuration
 const CHART_CONFIG = {
@@ -160,7 +164,41 @@ function updateMotorData(data) {
 }
 
 function updateMotorStatus(data) {
-    document.getElementById('esp32-status').textContent = data.status || 'Unknown';
+    const statusText = data.status || 'Unknown';
+    const espEl = document.getElementById('esp32-status');
+    if (espEl) espEl.textContent = statusText;
+
+    // Handle calibration state from status messages
+    if (typeof statusText === 'string') {
+        const stateEl = document.getElementById('calibration-state');
+        const infoBox = document.getElementById('calibration-info');
+        const msgEl = document.getElementById('calibration-message');
+        const gainsEl = document.getElementById('calibration-gains');
+
+        if (/Autotuning process started/i.test(statusText)) {
+            calibrationInProgress = true;
+            calibrationDone = false;
+            if (stateEl) stateEl.textContent = 'Autotuning…';
+            if (infoBox) infoBox.style.display = 'block';
+            if (msgEl) msgEl.textContent = 'Autotuning in progress…';
+            if (gainsEl) gainsEl.textContent = '';
+            disableModeControls();
+        }
+
+        if (/Autotuning complete/i.test(statusText)) {
+            calibrationInProgress = false;
+            calibrationDone = true;
+            if (stateEl) stateEl.textContent = 'Completed';
+            if (infoBox) infoBox.style.display = 'block';
+            if (msgEl) msgEl.textContent = 'Autotuning complete. Gains learned:';
+            // Extract gains if present
+            const match = /Kp=([0-9.]+),\s*Ki=([0-9.]+),\s*Kd=([0-9.]+)/i.exec(statusText);
+            if (match && gainsEl) {
+                gainsEl.textContent = `Kp=${match[1]}  Ki=${match[2]}  Kd=${match[3]}`;
+            }
+            enableModeControls();
+        }
+    }
 }
 
 function updateElement(elementId, value, decimals = 0) {
@@ -175,6 +213,7 @@ function updateElement(elementId, value, decimals = 0) {
 
 function updateMotorDirection(targetRPM) {
     const directionElement = document.getElementById('motor-direction');
+    if (!directionElement) return;
     let direction, color;
     
     if (Math.abs(targetRPM) < 0.1) {
@@ -324,29 +363,47 @@ function updateCharts(data) {
 
 // Event Listeners
 function setupEventListeners() {
-    // Set RPM button
-    document.getElementById('set-rpm-btn').addEventListener('click', function() {
-        const targetRPM = parseFloat(document.getElementById('target-rpm').value);
-        sendRPMCommand(targetRPM);
+    // Calibration
+    const startBtn = document.getElementById('start-calibration-btn');
+    if (startBtn) {
+        startBtn.addEventListener('click', startCalibration);
+    }
+
+    // Mode selection
+    const rpmBtn = document.getElementById('mode-rpm-btn');
+    const posBtn = document.getElementById('mode-position-btn');
+    if (rpmBtn) rpmBtn.addEventListener('click', () => selectMode('Speed'));
+    if (posBtn) posBtn.addEventListener('click', () => selectMode('Position'));
+
+    // Send inputs
+    const sendRpmBtn = document.getElementById('send-rpm-btn');
+    const sendAngleBtn = document.getElementById('send-angle-btn');
+    if (sendRpmBtn) sendRpmBtn.addEventListener('click', () => {
+        const val = parseFloat(document.getElementById('target-rpm-input').value);
+        sendRPMCommand(val);
     });
-    
-    // Enter key on RPM input
-    document.getElementById('target-rpm').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const targetRPM = parseFloat(this.value);
-            sendRPMCommand(targetRPM);
-        }
+    if (sendAngleBtn) sendAngleBtn.addEventListener('click', () => {
+        const val = parseFloat(document.getElementById('target-angle-input').value);
+        sendAngleCommand(val);
     });
-    
-    // Quick control buttons are handled by onclick in HTML
+
+    // STOP button
+    const stopBtn = document.getElementById('stop-btn');
+    if (stopBtn) stopBtn.addEventListener('click', () => sendRPMCommand(0));
 }
 
 function setQuickRPM(rpm) {
-    document.getElementById('target-rpm').value = rpm;
+    // Legacy helper (not used in new UI)
+    const input = document.getElementById('target-rpm-input');
+    if (input) input.value = rpm;
     sendRPMCommand(rpm);
 }
 
 function sendRPMCommand(rpm) {
+    if (!calibrationDone) {
+        showNotification('Please complete calibration first', 'error');
+        return;
+    }
     if (isNaN(rpm)) {
         showNotification('Please enter a valid RPM value', 'error');
         return;
@@ -365,6 +422,108 @@ function sendRPMCommand(rpm) {
     if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(command))) {
         showNotification(`RPM set to ${rpm}`, 'success');
     }
+}
+
+function sendAngleCommand(angle) {
+    if (!calibrationDone) {
+        showNotification('Please complete calibration first', 'error');
+        return;
+    }
+    if (isNaN(angle)) {
+        showNotification('Please enter a valid angle', 'error');
+        return;
+    }
+    if (angle < -720 || angle > 720) {
+        showNotification('Angle must be between -720° and 720°', 'error');
+        return;
+    }
+    const command = {
+        targetAngle: angle,
+        timestamp: new Date().toISOString()
+    };
+    if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(command))) {
+        showNotification(`Angle set to ${angle}°`, 'success');
+    }
+}
+
+function startCalibration() {
+    if (calibrationInProgress) return;
+    const sent = publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify({ command: 'tune' }));
+    if (sent) {
+        calibrationInProgress = true;
+        calibrationDone = false;
+        const stateEl = document.getElementById('calibration-state');
+        const infoBox = document.getElementById('calibration-info');
+        const msgEl = document.getElementById('calibration-message');
+        const gainsEl = document.getElementById('calibration-gains');
+        if (stateEl) stateEl.textContent = 'Autotuning…';
+        if (infoBox) infoBox.style.display = 'block';
+        if (msgEl) msgEl.textContent = 'Autotuning in progress…';
+        if (gainsEl) gainsEl.textContent = '';
+        disableModeControls();
+    }
+}
+
+function selectMode(mode) {
+    if (!calibrationDone) {
+        showNotification('Calibrate first to enable controls', 'error');
+        return;
+    }
+    selectedMode = mode; // 'Speed' or 'Position'
+    const rpmBtn = document.getElementById('mode-rpm-btn');
+    const posBtn = document.getElementById('mode-position-btn');
+    const rpmControls = document.getElementById('rpm-controls');
+    const posControls = document.getElementById('position-controls');
+    const sendRpmBtn = document.getElementById('send-rpm-btn');
+    const sendAngleBtn = document.getElementById('send-angle-btn');
+    const rpmInput = document.getElementById('target-rpm-input');
+    const angInput = document.getElementById('target-angle-input');
+
+    if (mode === 'Speed') {
+        if (rpmBtn) { rpmBtn.classList.remove('secondary'); rpmBtn.classList.add('primary'); }
+        if (posBtn) { posBtn.classList.remove('primary'); posBtn.classList.add('secondary'); }
+        if (rpmControls) rpmControls.style.display = 'block';
+        if (posControls) posControls.style.display = 'none';
+        if (sendRpmBtn) sendRpmBtn.disabled = false;
+        if (rpmInput) rpmInput.disabled = false;
+        if (sendAngleBtn) sendAngleBtn.disabled = true;
+        if (angInput) angInput.disabled = true;
+    } else {
+        if (posBtn) { posBtn.classList.remove('secondary'); posBtn.classList.add('primary'); }
+        if (rpmBtn) { rpmBtn.classList.remove('primary'); rpmBtn.classList.add('secondary'); }
+        if (posControls) posControls.style.display = 'block';
+        if (rpmControls) rpmControls.style.display = 'none';
+        if (sendAngleBtn) sendAngleBtn.disabled = false;
+        if (angInput) angInput.disabled = false;
+        if (sendRpmBtn) sendRpmBtn.disabled = true;
+        if (rpmInput) rpmInput.disabled = true;
+    }
+}
+
+function enableModeControls() {
+    const rpmBtn = document.getElementById('mode-rpm-btn');
+    const posBtn = document.getElementById('mode-position-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (rpmBtn) rpmBtn.disabled = false;
+    if (posBtn) posBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = false;
+}
+
+function disableModeControls() {
+    const rpmBtn = document.getElementById('mode-rpm-btn');
+    const posBtn = document.getElementById('mode-position-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const sendRpmBtn = document.getElementById('send-rpm-btn');
+    const sendAngleBtn = document.getElementById('send-angle-btn');
+    const rpmInput = document.getElementById('target-rpm-input');
+    const angInput = document.getElementById('target-angle-input');
+    if (rpmBtn) rpmBtn.disabled = true;
+    if (posBtn) posBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
+    if (sendRpmBtn) sendRpmBtn.disabled = true;
+    if (sendAngleBtn) sendAngleBtn.disabled = true;
+    if (rpmInput) rpmInput.disabled = true;
+    if (angInput) angInput.disabled = true;
 }
 
 // Utility Functions
@@ -428,3 +587,38 @@ function simulateData() {
 
 // Uncomment the line below for testing without ESP32
 // setInterval(simulateData, 2000);
+
+// Extend data updates to show mode and angles
+function updateMotorData(data) {
+    // Existing updates
+    updateElement('current-rpm', data.currentRPM, 1);
+    updateElement('display-target-rpm', data.targetRPM, 1);
+    updateElement('pwm-value', data.pwmValue);
+
+    // Error percent based on RPM mode
+    const errorPercent = data.targetRPM !== 0 ?
+        Math.abs((data.targetRPM - data.currentRPM) / (data.targetRPM || 1) * 100) : 0;
+    updateElement('error-percent', errorPercent, 1);
+
+    // New: show mode and angles
+    if (data.mode) updateElement('display-mode', data.mode);
+    if (typeof data.currentAngle === 'number') updateElement('current-angle', data.currentAngle, 1);
+    if (typeof data.targetAngle === 'number') updateElement('target-angle', data.targetAngle, 1);
+
+    // New: compute and show Angle Error (absolute degrees)
+    if (typeof data.currentAngle === 'number' && typeof data.targetAngle === 'number') {
+        const angleError = Math.abs(data.targetAngle - data.currentAngle);
+        updateElement('angle-error', angleError, 1);
+    }
+
+    // Direction (optional)
+    updateMotorDirection(data.targetRPM || 0);
+
+    // Charts
+    updateCharts(data);
+
+    // System info
+    dataPoints++;
+    lastUpdateTime = new Date();
+    updateSystemInfo();
+}
