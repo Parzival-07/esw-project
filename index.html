@@ -12,8 +12,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Motor Control">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <!-- PWA Manifest (versioned to bust cache) -->
+    <link rel="manifest" href="manifest.json?v=2">
     
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" href="icons/icon-152x152.png">
@@ -256,7 +256,7 @@
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('sw.js', { scope: './' })
                     .then((registration) => {
                         console.log('✅ Service Worker registered successfully:', registration.scope);
                         

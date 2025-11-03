@@ -1,11 +1,14 @@
 // Service Worker for Motor Control Dashboard PWA
-const CACHE_NAME = 'motor-control-v1';
+const CACHE_NAME = 'motor-control-v2';
+// Build cache list relative to the service worker scope so it works under subfolders like /esw-project/
+const SCOPE_URL = self.registration ? self.registration.scope : self.location.href;
+const toURL = (path) => new URL(path, SCOPE_URL).toString();
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/script.js',
-  '/manifest.json',
+  toURL('./'),               // e.g., https://host/esw-project/
+  toURL('index.html'),
+  toURL('style.css'),
+  toURL('script.js'),
+  toURL('manifest.json'),
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
   'https://unpkg.com/mqtt/dist/mqtt.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js'
