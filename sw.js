@@ -1,11 +1,11 @@
 // Service Worker for Motor Control Dashboard PWA
 const CACHE_NAME = 'motor-control-v1';
 const urlsToCache = [
-  './',
-  './index.html',
-  './style.css',
-  './script.js',
-  './manifest.json',
+  '/',
+  '/index.html',
+  '/style.css',
+  '/script.js',
+  '/manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
   'https://unpkg.com/mqtt/dist/mqtt.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js'

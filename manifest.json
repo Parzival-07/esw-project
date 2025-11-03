@@ -2,12 +2,12 @@
   "name": "DC Motor Control Dashboard",
   "short_name": "Motor Control",
   "description": "Real-time DC Motor Control and Monitoring Dashboard",
-  "start_url": "./",
+  "start_url": "/esw-project/",
+  "scope": "/esw-project/",
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#0f3460",
   "orientation": "portrait-primary",
-  "scope": "./",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
