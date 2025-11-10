@@ -146,6 +146,11 @@ function updateMotorData(data) {
     updateElement('current-angle', data.currentAngle ?? 0, 1);
     updateElement('display-target-angle', data.targetAngle ?? 0, 1);
     
+    // Update PID gains if present
+    if (data.Kp !== undefined) updateElement('pid-kp', data.Kp, 4);
+    if (data.Ki !== undefined) updateElement('pid-ki', data.Ki, 4);
+    if (data.Kd !== undefined) updateElement('pid-kd', data.Kd, 4);
+    
     // Calculate and display error percentages
     const speedErr = (Math.abs(data.targetRPM) > 0.0001) ?
         Math.abs((data.targetRPM - data.currentRPM) / data.targetRPM * 100) : 0;
@@ -173,11 +178,15 @@ function updateMotorStatus(data) {
     const calibEl = document.getElementById('calibration-status');
     if (calibEl && statusText) {
         calibEl.textContent = statusText;
-        // Detect autotune completion
-        if (/autotuning complete/i.test(statusText)) {
+        // Detect autotune completion - check for Kp/Ki/Kd in status message
+        if (/autotuning complete/i.test(statusText) || /Kp=/i.test(statusText)) {
             isCalibrated = true;
             enableControls();
-            showNotification('Calibration completed. Controls enabled.', 'success');
+            showNotification('Calibration completed! ' + statusText, 'success');
+        }
+        // Show other status updates
+        if (/autotune/i.test(statusText) || /position reached/i.test(statusText)) {
+            showNotification(statusText, 'info');
         }
     }
 }
@@ -347,10 +356,10 @@ function setupEventListeners() {
     const calibBtn = document.getElementById('calibrate-btn');
     const skipBtn = document.getElementById('skip-calibration');
     calibBtn?.addEventListener('click', () => {
-        const cmd = { command: 'tune', timestamp: new Date().toISOString() };
+        const cmd = { command: 'tune' };
         if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(cmd))) {
             document.getElementById('calibration-status').textContent = 'Calibrating...';
-            showNotification('Autotune started', 'info');
+            showNotification('Autotune started - motor will oscillate around 150 RPM', 'info');
         }
     });
     skipBtn?.addEventListener('click', () => {
@@ -417,10 +426,7 @@ function sendRPMCommand(rpm) {
         return;
     }
     
-    const command = {
-        targetRPM: rpm,
-        timestamp: new Date().toISOString()
-    };
+    const command = { targetRPM: rpm };
     
     if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(command))) {
         showNotification(`RPM set to ${rpm}`, 'success');
@@ -437,10 +443,7 @@ function sendAngleCommand(angle) {
         return;
     }
 
-    const command = {
-        targetAngle: angle,
-        timestamp: new Date().toISOString()
-    };
+    const command = { targetAngle: angle };
     if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(command))) {
         showNotification(`Angle set to ${angle}°`, 'success');
     }
