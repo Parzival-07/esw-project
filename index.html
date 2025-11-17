@@ -29,7 +29,12 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-72x72.png">
     
-    <link rel="stylesheet" href="style.css">
+    <!-- Cache Control for Development -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <link rel="stylesheet" href="style.css?v=1.4">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -44,7 +49,9 @@
                     <span>Disconnected</span>
                 </span>
             </div>
-            <a href="simulation.html" class="btn secondary" style="white-space:nowrap;">Open Simulation ▶</a>
+            <a href="mqtt-simulation.html" class="btn secondary" style="white-space:nowrap;">
+                <i class="fas fa-car"></i> Open Car Simulation ▶
+            </a>
         </header>
 
         <main class="dashboard">
@@ -226,14 +233,58 @@
             <section class="charts-section">
                 <div class="chart-container">
                     <div class="card">
-                        <h3><i class="fas fa-chart-line"></i> RPM vs Time</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-chart-line"></i> RPM vs Time (Auto-scaled)</h3>
+                            <div>
+                                <button id="download-rpm-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-rpm-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
                         <canvas id="rpm-chart"></canvas>
                     </div>
                 </div>
                 <div class="chart-container">
                     <div class="card">
-                        <h3><i class="fas fa-chart-area"></i> PWM vs Time</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-chart-area"></i> PWM vs Time</h3>
+                            <div>
+                                <button id="download-pwm-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-pwm-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
                         <canvas id="pwm-chart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Calibration Oscillation Chart -->
+                <div class="chart-container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-wave-square"></i> Calibration Oscillations (150 RPM Base)</h3>
+                            <div>
+                                <button id="clear-calibration-btn" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                                <button id="download-calibration-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-calibration-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
+                        <canvas id="calibration-chart"></canvas>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.9em;">
+                            <i class="fas fa-info-circle"></i> This chart only records during autotuning calibration
+                        </p>
                     </div>
                 </div>
             </section>
@@ -268,7 +319,7 @@
         <button id="dismiss-btn" style="margin-left: 10px; padding: 8px 15px; background: transparent; border: 1px solid white; color: white; border-radius: 5px; cursor: pointer;">Later</button>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=1.4"></script>
     
     <!-- Service Worker Registration -->
     <script>

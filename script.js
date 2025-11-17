@@ -18,10 +18,12 @@ const TOPICS = {
 let mqttClient = null;
 let rpmChart = null;
 let pwmChart = null;
+let calibrationChart = null;
 let dataPoints = 0;
 let lastUpdateTime = null;
 let isCalibrated = false;
 let currentMode = 'speed'; // 'speed' or 'position'
+let isCalibrating = false; // Track if autotuning is in progress
 
 // Chart configuration
 const CHART_CONFIG = {
@@ -29,11 +31,19 @@ const CHART_CONFIG = {
     updateInterval: 1000
 };
 
+// Storage for chart data (for CSV export)
+const chartDataStorage = {
+    rpm: { labels: [], targetRPM: [], currentRPM: [] },
+    pwm: { labels: [], values: [] },
+    calibration: { labels: [], targetRPM: [], currentRPM: [] }
+};
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeMQTT();
     initializeCharts();
     setupEventListeners();
+    setupDownloadListeners();
     updateSystemInfo();
 });
 
@@ -178,11 +188,20 @@ function updateMotorStatus(data) {
     const calibEl = document.getElementById('calibration-status');
     if (calibEl && statusText) {
         calibEl.textContent = statusText;
+        
+        // Detect autotuning start
+        if (/autotuning/i.test(statusText) && !/complete/i.test(statusText)) {
+            isCalibrating = true;
+            console.log('Autotuning started - recording calibration data');
+        }
+        
         // Detect autotune completion - check for Kp/Ki/Kd in status message
         if (/autotuning complete/i.test(statusText) || /Kp=/i.test(statusText)) {
+            isCalibrating = false;
             isCalibrated = true;
             enableControls();
             showNotification('Calibration completed! ' + statusText, 'success');
+            console.log('Autotuning complete - stopped recording calibration data');
         }
         // Show other status updates
         if (/autotune/i.test(statusText) || /position reached/i.test(statusText)) {
@@ -241,7 +260,7 @@ function updateSystemInfo() {
 
 // Chart Functions
 function initializeCharts() {
-    // RPM Chart
+    // RPM Chart with auto-scaling
     const rpmCtx = document.getElementById('rpm-chart').getContext('2d');
     rpmChart = new Chart(rpmCtx, {
         type: 'line',
@@ -271,9 +290,14 @@ function initializeCharts() {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    min: -400,
-                    max: 400,
-                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                    // Auto-scale to show oscillations clearly
+                    beginAtZero: false,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(1);
+                        }
+                    }
                 },
                 x: {
                     grid: { color: 'rgba(0, 0, 0, 0.1)' }
@@ -322,6 +346,69 @@ function initializeCharts() {
             }
         }
     });
+
+    // Calibration Oscillation Chart (150 RPM base)
+    const calibrationCtx = document.getElementById('calibration-chart').getContext('2d');
+    calibrationChart = new Chart(calibrationCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: '150 RPM Baseline',
+                    data: [],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                },
+                {
+                    label: 'Target RPM',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 2
+                },
+                {
+                    label: 'Actual RPM',
+                    data: [],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 2,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 100,  // Base around 150 RPM
+                    max: 200,  // Show range 100-200 to capture oscillations
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(1);
+                        }
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
 }
 
 function updateCharts(data) {
@@ -332,11 +419,34 @@ function updateCharts(data) {
     rpmChart.data.datasets[0].data.push(data.targetRPM);
     rpmChart.data.datasets[1].data.push(data.currentRPM);
     
+    // Store for CSV export (keep all data)
+    chartDataStorage.rpm.labels.push(currentTime);
+    chartDataStorage.rpm.targetRPM.push(data.targetRPM);
+    chartDataStorage.rpm.currentRPM.push(data.currentRPM);
+    
     // Update PWM chart
     pwmChart.data.labels.push(currentTime);
     pwmChart.data.datasets[0].data.push(data.pwmValue);
     
-    // Limit data points to prevent memory issues
+    chartDataStorage.pwm.labels.push(currentTime);
+    chartDataStorage.pwm.values.push(data.pwmValue);
+    
+    // Update Calibration chart ONLY during autotuning
+    if (isCalibrating) {
+        calibrationChart.data.labels.push(currentTime);
+        calibrationChart.data.datasets[0].data.push(150); // 150 RPM baseline
+        calibrationChart.data.datasets[1].data.push(data.targetRPM);
+        calibrationChart.data.datasets[2].data.push(data.currentRPM);
+        
+        chartDataStorage.calibration.labels.push(currentTime);
+        chartDataStorage.calibration.targetRPM.push(data.targetRPM);
+        chartDataStorage.calibration.currentRPM.push(data.currentRPM);
+        
+        // No limit on calibration data points - keep all until cleared
+        calibrationChart.update('none');
+    }
+    
+    // Limit data points to prevent memory issues (for display only, storage keeps all)
     if (rpmChart.data.labels.length > CHART_CONFIG.maxDataPoints) {
         rpmChart.data.labels.shift();
         rpmChart.data.datasets[0].data.shift();
@@ -358,8 +468,9 @@ function setupEventListeners() {
     calibBtn?.addEventListener('click', () => {
         const cmd = { command: 'tune' };
         if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(cmd))) {
+            isCalibrating = true;
             document.getElementById('calibration-status').textContent = 'Calibrating...';
-            showNotification('Autotune started - motor will oscillate around 150 RPM', 'info');
+            showNotification('Autotune started - recording oscillations around 150 RPM', 'info');
         }
     });
     skipBtn?.addEventListener('click', () => {
@@ -532,6 +643,89 @@ function showNotification(message, type = 'info') {
             document.body.removeChild(notification);
         }, 300);
     }, 3000);
+}
+
+// Download Functions
+function downloadChartAsPNG(chart, filename) {
+    const url = chart.toBase64Image();
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = url;
+    link.click();
+    showNotification(`Downloaded ${filename}`, 'success');
+}
+
+function downloadChartAsCSV(data, filename) {
+    let csvContent = '';
+    
+    // Different CSV formats based on data type
+    if (data.targetRPM !== undefined) {
+        // RPM data
+        csvContent = 'Time,Target RPM,Current RPM\n';
+        for (let i = 0; i < data.labels.length; i++) {
+            csvContent += `${data.labels[i]},${data.targetRPM[i]},${data.currentRPM[i]}\n`;
+        }
+    } else if (data.values !== undefined) {
+        // Single value data (PWM, Kp, Ki, Kd)
+        csvContent = 'Time,Value\n';
+        for (let i = 0; i < data.labels.length; i++) {
+            csvContent += `${data.labels[i]},${data.values[i]}\n`;
+        }
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showNotification(`Downloaded ${filename}`, 'success');
+}
+
+// Clear calibration chart
+function clearCalibrationChart() {
+    calibrationChart.data.labels = [];
+    calibrationChart.data.datasets[0].data = []; // Baseline
+    calibrationChart.data.datasets[1].data = []; // Target RPM
+    calibrationChart.data.datasets[2].data = []; // Actual RPM
+    chartDataStorage.calibration.labels = [];
+    chartDataStorage.calibration.targetRPM = [];
+    chartDataStorage.calibration.currentRPM = [];
+    calibrationChart.update();
+    showNotification('Calibration chart cleared', 'info');
+}
+
+// Setup download button listeners
+function setupDownloadListeners() {
+    // RPM chart downloads
+    document.getElementById('download-rpm-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(rpmChart, 'rpm-chart.png');
+    });
+    document.getElementById('download-rpm-csv')?.addEventListener('click', () => {
+        downloadChartAsCSV(chartDataStorage.rpm, 'rpm-data.csv');
+    });
+    
+    // PWM chart downloads
+    document.getElementById('download-pwm-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(pwmChart, 'pwm-chart.png');
+    });
+    document.getElementById('download-pwm-csv')?.addEventListener('click', () => {
+        downloadChartAsCSV(chartDataStorage.pwm, 'pwm-data.csv');
+    });
+    
+    // Calibration chart downloads
+    document.getElementById('download-calibration-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(calibrationChart, 'calibration-oscillations.png');
+    });
+    document.getElementById('download-calibration-csv')?.addEventListener('click', () => {
+        downloadChartAsCSV(chartDataStorage.calibration, 'calibration-data.csv');
+    });
+    document.getElementById('clear-calibration-btn')?.addEventListener('click', () => {
+        clearCalibrationChart();
+    });
 }
 
 // Simulate data for testing (remove when using real MQTT data)
