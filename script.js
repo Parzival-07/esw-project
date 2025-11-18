@@ -19,11 +19,18 @@ let mqttClient = null;
 let rpmChart = null;
 let pwmChart = null;
 let calibrationChart = null;
+let comparisonChart = null;
+let pOnlyChart = null;
+let piOnlyChart = null;
+let pidFullChart = null;
 let dataPoints = 0;
 let lastUpdateTime = null;
 let isCalibrated = false;
 let currentMode = 'speed'; // 'speed' or 'position'
 let isCalibrating = false; // Track if autotuning is in progress
+let currentPIDMode = 'PID'; // 'P', 'PI', or 'PID'
+let recordingComparison = false; // Track if we're recording for comparison
+let comparisonStartTime = null;
 
 // Chart configuration
 const CHART_CONFIG = {
@@ -35,7 +42,17 @@ const CHART_CONFIG = {
 const chartDataStorage = {
     rpm: { labels: [], targetRPM: [], currentRPM: [] },
     pwm: { labels: [], values: [] },
-    calibration: { labels: [], targetRPM: [], currentRPM: [] }
+    calibration: { labels: [], targetRPM: [], currentRPM: [] },
+    comparison: { 
+        labels: [], 
+        setpoint: [], 
+        pOnly: [], 
+        piOnly: [], 
+        pidFull: [] 
+    },
+    pOnly: { labels: [], targetRPM: [], currentRPM: [] },
+    piOnly: { labels: [], targetRPM: [], currentRPM: [] },
+    pidFull: { labels: [], targetRPM: [], currentRPM: [] }
 };
 
 // Initialize the application
@@ -161,6 +178,18 @@ function updateMotorData(data) {
     if (data.Ki !== undefined) updateElement('pid-ki', data.Ki, 4);
     if (data.Kd !== undefined) updateElement('pid-kd', data.Kd, 4);
     
+    // Update PID mode display if received from ESP32
+    if (data.pidMode && data.pidMode !== currentPIDMode) {
+        currentPIDMode = data.pidMode;
+        document.querySelectorAll('[id^="pid-mode-"]').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`pid-mode-${data.pidMode.toLowerCase()}`)?.classList.add('active');
+        const activeModeEl = document.getElementById('active-pid-mode');
+        if (activeModeEl) {
+            activeModeEl.textContent = data.pidMode;
+            activeModeEl.style.color = data.pidMode === 'P' ? '#ef4444' : data.pidMode === 'PI' ? '#f59e0b' : '#a855f7';
+        }
+    }
+    
     // Calculate and display error percentages
     const speedErr = (Math.abs(data.targetRPM) > 0.0001) ?
         Math.abs((data.targetRPM - data.currentRPM) / data.targetRPM * 100) : 0;
@@ -260,7 +289,7 @@ function updateSystemInfo() {
 
 // Chart Functions
 function initializeCharts() {
-    // RPM Chart with auto-scaling
+    // RPM Chart with auto-scaling (integer steps)
     const rpmCtx = document.getElementById('rpm-chart').getContext('2d');
     rpmChart = new Chart(rpmCtx, {
         type: 'line',
@@ -290,12 +319,13 @@ function initializeCharts() {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    // Auto-scale to show oscillations clearly
+                    // Auto-scale to show oscillations clearly with integer steps of 1
                     beginAtZero: false,
                     grid: { color: 'rgba(0, 0, 0, 0.1)' },
                     ticks: {
+                        stepSize: 1,
                         callback: function(value) {
-                            return value.toFixed(1);
+                            return Math.round(value);
                         }
                     }
                 },
@@ -409,6 +439,245 @@ function initializeCharts() {
             }
         }
     });
+
+    // PID Comparison Chart (for comparing P, PI, and PID responses) - AUTO-SCALED with integer steps
+    const comparisonCtx = document.getElementById('comparison-chart').getContext('2d');
+    comparisonChart = new Chart(comparisonCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Setpoint (Target)',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                },
+                {
+                    label: 'P-only (Red)',
+                    data: [],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 1,
+                    fill: false
+                },
+                {
+                    label: 'PI-only (Orange)',
+                    data: [],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 1,
+                    fill: false
+                },
+                {
+                    label: 'Full PID (Purple)',
+                    data: [],
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 1,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    // Auto-scale to show oscillations clearly with integer steps of 1
+                    beginAtZero: false,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    ticks: {
+                        stepSize: 1,
+                        callback: function(value) {
+                            return Math.round(value);
+                        }
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    // P-only Individual Chart - AUTO-SCALED with integer steps
+    const pOnlyCtx = document.getElementById('p-only-chart').getContext('2d');
+    pOnlyChart = new Chart(pOnlyCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Target RPM',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                },
+                {
+                    label: 'P-only Response',
+                    data: [],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 2,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    ticks: {
+                        stepSize: 1,
+                        callback: function(value) {
+                            return Math.round(value);
+                        }
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    // PI-only Individual Chart - AUTO-SCALED with integer steps
+    const piOnlyCtx = document.getElementById('pi-only-chart').getContext('2d');
+    piOnlyChart = new Chart(piOnlyCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Target RPM',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                },
+                {
+                    label: 'PI-only Response',
+                    data: [],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 2,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    ticks: {
+                        stepSize: 1,
+                        callback: function(value) {
+                            return Math.round(value);
+                        }
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    // Full PID Individual Chart - AUTO-SCALED with integer steps
+    const pidFullCtx = document.getElementById('pid-full-chart').getContext('2d');
+    pidFullChart = new Chart(pidFullCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Target RPM',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                },
+                {
+                    label: 'Full PID Response',
+                    data: [],
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 2,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    ticks: {
+                        stepSize: 1,
+                        callback: function(value) {
+                            return Math.round(value);
+                        }
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
 }
 
 function updateCharts(data) {
@@ -458,6 +727,55 @@ function updateCharts(data) {
     
     rpmChart.update('none');
     pwmChart.update('none');
+    
+    // Update Comparison chart if recording
+    if (recordingComparison && data.pidMode) {
+        const timeElapsed = ((Date.now() - comparisonStartTime) / 1000).toFixed(1) + 's';
+        comparisonChart.data.labels.push(timeElapsed);
+        comparisonChart.data.datasets[0].data.push(data.targetRPM); // Setpoint
+        
+        // Add data to appropriate dataset based on current mode
+        const pIdx = 1, piIdx = 2, pidIdx = 3;
+        comparisonChart.data.datasets[pIdx].data.push(data.pidMode === 'P' ? data.currentRPM : null);
+        comparisonChart.data.datasets[piIdx].data.push(data.pidMode === 'PI' ? data.currentRPM : null);
+        comparisonChart.data.datasets[pidIdx].data.push(data.pidMode === 'PID' ? data.currentRPM : null);
+        
+        // Store for CSV
+        chartDataStorage.comparison.labels.push(timeElapsed);
+        chartDataStorage.comparison.setpoint.push(data.targetRPM);
+        if (data.pidMode === 'P') chartDataStorage.comparison.pOnly.push(data.currentRPM);
+        if (data.pidMode === 'PI') chartDataStorage.comparison.piOnly.push(data.currentRPM);
+        if (data.pidMode === 'PID') chartDataStorage.comparison.pidFull.push(data.currentRPM);
+        
+        comparisonChart.update('none');
+        
+        // Update individual charts based on current mode
+        if (data.pidMode === 'P') {
+            pOnlyChart.data.labels.push(timeElapsed);
+            pOnlyChart.data.datasets[0].data.push(data.targetRPM);
+            pOnlyChart.data.datasets[1].data.push(data.currentRPM);
+            chartDataStorage.pOnly.labels.push(timeElapsed);
+            chartDataStorage.pOnly.targetRPM.push(data.targetRPM);
+            chartDataStorage.pOnly.currentRPM.push(data.currentRPM);
+            pOnlyChart.update('none');
+        } else if (data.pidMode === 'PI') {
+            piOnlyChart.data.labels.push(timeElapsed);
+            piOnlyChart.data.datasets[0].data.push(data.targetRPM);
+            piOnlyChart.data.datasets[1].data.push(data.currentRPM);
+            chartDataStorage.piOnly.labels.push(timeElapsed);
+            chartDataStorage.piOnly.targetRPM.push(data.targetRPM);
+            chartDataStorage.piOnly.currentRPM.push(data.currentRPM);
+            piOnlyChart.update('none');
+        } else if (data.pidMode === 'PID') {
+            pidFullChart.data.labels.push(timeElapsed);
+            pidFullChart.data.datasets[0].data.push(data.targetRPM);
+            pidFullChart.data.datasets[1].data.push(data.currentRPM);
+            chartDataStorage.pidFull.labels.push(timeElapsed);
+            chartDataStorage.pidFull.targetRPM.push(data.targetRPM);
+            chartDataStorage.pidFull.currentRPM.push(data.currentRPM);
+            pidFullChart.update('none');
+        }
+    }
 }
 
 // Event Listeners
@@ -479,6 +797,11 @@ function setupEventListeners() {
         document.getElementById('calibration-status').textContent = 'Skipped';
         showNotification('Calibration skipped. You can calibrate later.', 'warning');
     });
+
+    // PID mode buttons
+    document.getElementById('pid-mode-p')?.addEventListener('click', () => setPIDMode('P'));
+    document.getElementById('pid-mode-pi')?.addEventListener('click', () => setPIDMode('PI'));
+    document.getElementById('pid-mode-pid')?.addEventListener('click', () => setPIDMode('PID'));
 
     // Mode toggle
     const rpmBtn = document.getElementById('mode-rpm-btn');
@@ -586,10 +909,41 @@ function setMode(mode) {
     }
 }
 
+function setPIDMode(mode) {
+    if (!['P', 'PI', 'PID'].includes(mode)) return;
+    
+    currentPIDMode = mode;
+    
+    // Update UI buttons
+    document.querySelectorAll('[id^="pid-mode-"]').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`pid-mode-${mode.toLowerCase()}`)?.classList.add('active');
+    
+    // Update active mode display
+    const activeModeEl = document.getElementById('active-pid-mode');
+    if (activeModeEl) {
+        activeModeEl.textContent = mode;
+        activeModeEl.style.color = mode === 'P' ? '#ef4444' : mode === 'PI' ? '#f59e0b' : '#a855f7';
+    }
+    
+    // Send MQTT command
+    const command = { pidMode: mode };
+    if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(command))) {
+        showNotification(`PID Mode set to ${mode}`, 'success');
+        
+        // Start recording for comparison when mode changes
+        if (!recordingComparison) {
+            recordingComparison = true;
+            comparisonStartTime = Date.now();
+            showNotification('Started recording for comparison graph', 'info');
+        }
+    }
+}
+
 function enableControls() {
     // Enable inputs and buttons for both modes
     ['target-rpm','set-rpm-btn','quick-rpm-60','quick-rpm-0','quick-rpm--60',
-     'target-angle','set-angle-btn','quick-ang--90','quick-ang-0','quick-ang-90']
+     'target-angle','set-angle-btn','quick-ang--90','quick-ang-0','quick-ang-90',
+     'pid-mode-p','pid-mode-pi','pid-mode-pid']
         .forEach(id => {
             const el = document.getElementById(id);
             if (el) el.disabled = false;
@@ -698,6 +1052,83 @@ function clearCalibrationChart() {
     showNotification('Calibration chart cleared', 'info');
 }
 
+// Clear comparison chart
+function clearComparisonChart() {
+    comparisonChart.data.labels = [];
+    comparisonChart.data.datasets.forEach(dataset => dataset.data = []);
+    chartDataStorage.comparison.labels = [];
+    chartDataStorage.comparison.setpoint = [];
+    chartDataStorage.comparison.pOnly = [];
+    chartDataStorage.comparison.piOnly = [];
+    chartDataStorage.comparison.pidFull = [];
+    comparisonChart.update();
+    recordingComparison = false;
+    comparisonStartTime = null;
+    showNotification('Comparison chart cleared', 'info');
+}
+
+// Clear individual PID mode charts
+function clearIndividualCharts() {
+    // Clear P-only chart
+    pOnlyChart.data.labels = [];
+    pOnlyChart.data.datasets.forEach(dataset => dataset.data = []);
+    chartDataStorage.pOnly.labels = [];
+    chartDataStorage.pOnly.targetRPM = [];
+    chartDataStorage.pOnly.currentRPM = [];
+    pOnlyChart.update();
+    
+    // Clear PI-only chart
+    piOnlyChart.data.labels = [];
+    piOnlyChart.data.datasets.forEach(dataset => dataset.data = []);
+    chartDataStorage.piOnly.labels = [];
+    chartDataStorage.piOnly.targetRPM = [];
+    chartDataStorage.piOnly.currentRPM = [];
+    piOnlyChart.update();
+    
+    // Clear PID full chart
+    pidFullChart.data.labels = [];
+    pidFullChart.data.datasets.forEach(dataset => dataset.data = []);
+    chartDataStorage.pidFull.labels = [];
+    chartDataStorage.pidFull.targetRPM = [];
+    chartDataStorage.pidFull.currentRPM = [];
+    pidFullChart.update();
+    
+    recordingComparison = false;
+    comparisonStartTime = null;
+    showNotification('Individual PID charts cleared', 'info');
+}
+
+// Download comparison chart as CSV
+function downloadComparisonCSV() {
+    let csvContent = 'Time,Setpoint,P-only,PI-only,Full PID\n';
+    const maxLen = Math.max(
+        chartDataStorage.comparison.labels.length,
+        chartDataStorage.comparison.pOnly.length,
+        chartDataStorage.comparison.piOnly.length,
+        chartDataStorage.comparison.pidFull.length
+    );
+    
+    for (let i = 0; i < maxLen; i++) {
+        const time = chartDataStorage.comparison.labels[i] || '';
+        const setpoint = chartDataStorage.comparison.setpoint[i] || '';
+        const p = chartDataStorage.comparison.pOnly[i] || '';
+        const pi = chartDataStorage.comparison.piOnly[i] || '';
+        const pid = chartDataStorage.comparison.pidFull[i] || '';
+        csvContent += `${time},${setpoint},${p},${pi},${pid}\n`;
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'pid-comparison.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showNotification('Downloaded pid-comparison.csv', 'success');
+}
+
 // Setup download button listeners
 function setupDownloadListeners() {
     // RPM chart downloads
@@ -725,6 +1156,43 @@ function setupDownloadListeners() {
     });
     document.getElementById('clear-calibration-btn')?.addEventListener('click', () => {
         clearCalibrationChart();
+    });
+    
+    // Comparison chart downloads
+    document.getElementById('download-comparison-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(comparisonChart, 'pid-comparison.png');
+    });
+    document.getElementById('download-comparison-csv')?.addEventListener('click', () => {
+        downloadComparisonCSV();
+    });
+    document.getElementById('clear-comparison-btn')?.addEventListener('click', () => {
+        clearComparisonChart();
+    });
+    
+    // Individual PID charts downloads
+    document.getElementById('download-p-only-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(pOnlyChart, 'p-only-response.png');
+    });
+    document.getElementById('download-p-only-csv')?.addEventListener('click', () => {
+        downloadChartAsCSV(chartDataStorage.pOnly, 'p-only-data.csv');
+    });
+    
+    document.getElementById('download-pi-only-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(piOnlyChart, 'pi-only-response.png');
+    });
+    document.getElementById('download-pi-only-csv')?.addEventListener('click', () => {
+        downloadChartAsCSV(chartDataStorage.piOnly, 'pi-only-data.csv');
+    });
+    
+    document.getElementById('download-pid-full-png')?.addEventListener('click', () => {
+        downloadChartAsPNG(pidFullChart, 'pid-full-response.png');
+    });
+    document.getElementById('download-pid-full-csv')?.addEventListener('click', () => {
+        downloadChartAsCSV(chartDataStorage.pidFull, 'pid-full-data.csv');
+    });
+    
+    document.getElementById('clear-individual-btn')?.addEventListener('click', () => {
+        clearIndividualCharts();
     });
 }
 

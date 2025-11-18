@@ -72,6 +72,23 @@
                     </div>
                 </div>
 
+                <!-- PID Mode Selection -->
+                <div class="card">
+                    <h2><i class="fas fa-cogs"></i> PID Control Mode</h2>
+                    <p style="margin-bottom: 12px; color: #94a3b8;">Select control strategy to compare responses (see graph below)</p>
+                    <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+                        <button id="pid-mode-p" class="btn secondary" disabled><i class="fas fa-p"></i> P-only</button>
+                        <button id="pid-mode-pi" class="btn secondary" disabled><i class="fas fa-chart-line"></i> PI-only</button>
+                        <button id="pid-mode-pid" class="btn secondary active" disabled><i class="fas fa-sliders-h"></i> Full PID</button>
+                        <span style="margin-left:auto; color:#94a3b8;">Active: <strong id="active-pid-mode" style="color:#10b981;">PID</strong></span>
+                    </div>
+                    <div style="padding:10px; background: #1e293b; border-radius:8px; font-size:0.9em;">
+                        <p style="margin:0; color:#94a3b8;"><strong>P-only:</strong> Proportional control (Ki=0, Kd=0) - Fast but with steady-state error and overshoot</p>
+                        <p style="margin:5px 0 0 0; color:#94a3b8;"><strong>PI-only:</strong> Proportional + Integral (Kd=0) - Eliminates steady-state error but may oscillate</p>
+                        <p style="margin:5px 0 0 0; color:#94a3b8;"><strong>Full PID:</strong> All three terms - Best overall performance with damped response</p>
+                    </div>
+                </div>
+
                 <!-- Mode Selection -->
                 <div class="card">
                     <h2><i class="fas fa-sliders-h"></i> Control Mode</h2>
@@ -261,6 +278,108 @@
                             </div>
                         </div>
                         <canvas id="pwm-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- PID Comparison Chart -->
+                <div class="chart-container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-chart-area"></i> PID Mode Comparison (P vs PI vs PID) - Auto-Scaled</h3>
+                            <div>
+                                <button id="clear-comparison-btn" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-trash"></i> Clear All
+                                </button>
+                                <button id="download-comparison-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-comparison-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
+                        <canvas id="comparison-chart"></canvas>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.9em;">
+                            <i class="fas fa-info-circle"></i> 
+                            Auto-scaled for clear visibility. Set a target RPM, then switch between P, PI, and PID modes to compare their responses on the same graph.
+                            The setpoint line shows your target temperature like in the professor's example.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Individual PID Mode Charts -->
+                <div class="chart-container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-chart-line"></i> P-only Control Response (Proportional Only)</h3>
+                            <div>
+                                <button id="download-p-only-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-p-only-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
+                        <canvas id="p-only-chart"></canvas>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.9em;">
+                            <i class="fas fa-info-circle"></i> 
+                            <span style="color: #ef4444; font-weight: bold;">Red trace:</span> P-only control (Ki=0, Kd=0) - Fast response but with steady-state error and overshoot
+                        </p>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-chart-line"></i> PI-only Control Response (Proportional + Integral)</h3>
+                            <div>
+                                <button id="download-pi-only-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-pi-only-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
+                        <canvas id="pi-only-chart"></canvas>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.9em;">
+                            <i class="fas fa-info-circle"></i> 
+                            <span style="color: #f59e0b; font-weight: bold;">Orange trace:</span> PI-only control (Kd=0) - Eliminates steady-state error but may oscillate
+                        </p>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3><i class="fas fa-chart-line"></i> Full PID Control Response (P + I + D)</h3>
+                            <div>
+                                <button id="download-pid-full-png" class="btn secondary" style="margin-right: 5px;">
+                                    <i class="fas fa-image"></i> PNG
+                                </button>
+                                <button id="download-pid-full-csv" class="btn secondary">
+                                    <i class="fas fa-file-csv"></i> CSV
+                                </button>
+                            </div>
+                        </div>
+                        <canvas id="pid-full-chart"></canvas>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.9em;">
+                            <i class="fas fa-info-circle"></i> 
+                            <span style="color: #a855f7; font-weight: bold;">Purple trace:</span> Full PID control - Best overall performance with damped response and minimal overshoot
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Clear All Individual Charts Button -->
+                <div class="chart-container">
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <button id="clear-individual-btn" class="btn primary" style="font-size: 1.1em;">
+                            <i class="fas fa-trash-alt"></i> Clear All Individual PID Charts
+                        </button>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.9em;">
+                            Clears all three individual charts (P-only, PI-only, and Full PID) to start fresh testing
+                        </p>
                     </div>
                 </div>
                 

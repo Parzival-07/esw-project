@@ -2,6 +2,28 @@
 
 This guide will walk you through setting up a complete motor control system with ESP32, HiveMQ MQTT broker, and a web dashboard.
 
+## 🆕 NEW: PID Control Mode Comparison Feature
+
+**Generate graphs like your professor's example!** Compare P-only, PI-only, and full PID control responses.
+
+### Quick Links:
+- 📘 [Quick Reference Guide](QUICK-REFERENCE.md) - Fast 5-step setup
+- 📖 [Detailed PID Comparison Guide](PID-COMPARISON-GUIDE.md) - Complete instructions
+- 📝 [Changes Summary](CHANGES-SUMMARY.md) - What was modified
+
+### What You Can Do Now:
+- ✅ Switch between P, PI, and PID control modes with one click
+- ✅ Generate overlaid comparison graphs showing all three responses
+- ✅ See setpoint line (like the 21°C baseline in professor's temperature example)
+- ✅ Export graphs as PNG for reports or CSV for analysis
+- ✅ Color-coded traces: 🔴 Red (P-only), 🟠 Orange (PI-only), 🟣 Purple (Full PID)
+
+**Files to use:**
+- Arduino: `esp32_motor_control_pid_modes.ino` (new file with mode support)
+- Website: `index.html` and `script.js` (already updated)
+
+---
+
 ## 📋 Table of Contents
 1. [Prerequisites](#prerequisites)
 2. [HiveMQ Cloud Setup](#hivemq-cloud-setup)
