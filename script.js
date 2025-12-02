@@ -178,6 +178,11 @@ function updateMotorData(data) {
     if (data.Ki !== undefined) updateElement('pid-ki', data.Ki, 4);
     if (data.Kd !== undefined) updateElement('pid-kd', data.Kd, 4);
     
+    // Update position PID gains if present
+    if (data.posKp !== undefined) updateElement('pid-pos-kp', data.posKp, 4);
+    if (data.posKi !== undefined) updateElement('pid-pos-ki', data.posKi, 4);
+    if (data.posKd !== undefined) updateElement('pid-pos-kd', data.posKd, 4);
+    
     // Update PID mode display if received from ESP32
     if (data.pidMode && data.pidMode !== currentPIDMode) {
         currentPIDMode = data.pidMode;
@@ -781,16 +786,28 @@ function updateCharts(data) {
 // Event Listeners
 function setupEventListeners() {
     // Calibration
-    const calibBtn = document.getElementById('calibrate-btn');
+    const calibSpeedBtn = document.getElementById('calibrate-speed-btn');
+    const calibPosBtn = document.getElementById('calibrate-position-btn');
     const skipBtn = document.getElementById('skip-calibration');
-    calibBtn?.addEventListener('click', () => {
-        const cmd = { command: 'tune' };
+    
+    calibSpeedBtn?.addEventListener('click', () => {
+        const cmd = { command: 'tuneSpeed' };
         if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(cmd))) {
             isCalibrating = true;
-            document.getElementById('calibration-status').textContent = 'Calibrating...';
-            showNotification('Autotune started - recording oscillations around 150 RPM', 'info');
+            document.getElementById('calibration-status').textContent = 'Tuning Speed PID...';
+            showNotification('Speed PID Autotune started - recording oscillations around 150 RPM', 'info');
         }
     });
+    
+    calibPosBtn?.addEventListener('click', () => {
+        const cmd = { command: 'tunePosition' };
+        if (publishMQTTMessage(TOPICS.MOTOR_CONTROL, JSON.stringify(cmd))) {
+            isCalibrating = true;
+            document.getElementById('calibration-status').textContent = 'Tuning Position PID...';
+            showNotification('Position PID Autotune started - recording oscillations around 150 RPM', 'info');
+        }
+    });
+    
     skipBtn?.addEventListener('click', () => {
         isCalibrated = true;
         enableControls();

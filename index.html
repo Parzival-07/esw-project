@@ -62,8 +62,11 @@
                     <h2><i class="fas fa-wrench"></i> Calibration</h2>
                     <p style="margin-bottom: 12px; color: #94a3b8;">Run autotune calibration before controlling the motor for best accuracy.</p>
                     <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-                        <button id="calibrate-btn" class="btn primary">
-                            <i class="fas fa-robot"></i> Start Calibration
+                        <button id="calibrate-speed-btn" class="btn primary">
+                            <i class="fas fa-gauge"></i> Tune Speed PID
+                        </button>
+                        <button id="calibrate-position-btn" class="btn primary">
+                            <i class="fas fa-location-arrow"></i> Tune Position PID
                         </button>
                         <button id="skip-calibration" class="btn secondary">
                             Skip for now
@@ -213,34 +216,70 @@
                 </div>
 
                 <!-- PID Gains Display -->
-                <div class="metrics-grid" style="margin-top: 20px;">
-                    <div class="metric-card">
-                        <div class="metric-icon">
-                            <i class="fas fa-sliders-h"></i>
+                <div style="margin-top: 20px;">
+                    <h3 style="color:#94a3b8; margin-bottom:10px;"><i class="fas fa-gauge"></i> Speed PID Gains</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-sliders-h"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>Kp (Proportional)</h3>
+                                <span id="pid-kp" class="metric-value">0.0000</span>
+                            </div>
                         </div>
-                        <div class="metric-content">
-                            <h3>Kp (Proportional)</h3>
-                            <span id="pid-kp" class="metric-value">0.0000</span>
+
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>Ki (Integral)</h3>
+                                <span id="pid-ki" class="metric-value">0.0000</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-wave-square"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>Kd (Derivative)</h3>
+                                <span id="pid-kd" class="metric-value">0.0000</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="metric-card">
-                        <div class="metric-icon">
-                            <i class="fas fa-chart-line"></i>
+                    <h3 style="color:#94a3b8; margin: 20px 0 10px 0;"><i class="fas fa-location-arrow"></i> Position PID Gains</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-sliders-h"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>posKp</h3>
+                                <span id="pid-pos-kp" class="metric-value">0.0000</span>
+                            </div>
                         </div>
-                        <div class="metric-content">
-                            <h3>Ki (Integral)</h3>
-                            <span id="pid-ki" class="metric-value">0.0000</span>
-                        </div>
-                    </div>
 
-                    <div class="metric-card">
-                        <div class="metric-icon">
-                            <i class="fas fa-wave-square"></i>
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>posKi</h3>
+                                <span id="pid-pos-ki" class="metric-value">0.0000</span>
+                            </div>
                         </div>
-                        <div class="metric-content">
-                            <h3>Kd (Derivative)</h3>
-                            <span id="pid-kd" class="metric-value">0.0000</span>
+
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-wave-square"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>posKd</h3>
+                                <span id="pid-pos-kd" class="metric-value">0.0000</span>
+                            </div>
                         </div>
                     </div>
                 </div>

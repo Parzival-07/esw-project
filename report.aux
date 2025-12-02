@@ -1,0 +1,53 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Executive Summary}{3}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Introduction}{3}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Project Objectives}{3}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Scope}{3}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}System Hardware Architecture}{3}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Microcontroller: ESP32}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Actuator: DC Motor \& Driver}{4}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Sensor: Quadrature Encoder}{4}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Software Architecture}{4}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}The Main Loop}{4}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}State Machine}{4}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Control Theory \& Implementation}{4}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}RPM Control \& PWM Scaling (-300 to +300 RPM)}{5}{subsection.5.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces RPM vs PWM Calibration Curve}}{5}{figure.1}\protected@file@percent }
+\newlabel{fig:calib_curve}{{1}{5}{RPM vs PWM Calibration Curve}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Feedback Control (PID)}{5}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Position Control Implementation}{6}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Variable Tracking}{6}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Control Logic (\texttt  {runPositionControl})}{6}{subsection.6.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Position Control Step Response}}{7}{figure.2}\protected@file@percent }
+\newlabel{fig:pos_response}{{2}{7}{Position Control Step Response}{figure.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Car Simulation (The Digital Twin)}{7}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Kinematic Model}{7}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Simulation Mapping: RPM to Speed, Angle to Turn}{7}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Implementation (\texttt  {mqtt-simulation.js})}{8}{subsection.7.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Simulation Screenshot}}{9}{figure.3}\protected@file@percent }
+\newlabel{fig:sim_screenshot}{{3}{9}{Simulation Screenshot}{figure.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Automatic Tuning \& Method Comparison}{9}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}The Relay Method}{9}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Comparison: Ziegler-Nichols vs. Tyler-Rubinson}{9}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {8.2.1}Method 1: Ziegler-Nichols (ZN)}{9}{subsubsection.8.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {8.2.2}Method 2: Tyler-Rubinson (Tyreus-Luyben)}{9}{subsubsection.8.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Final Decision}{10}{subsection.8.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces ZN vs TR Step Response Overlay}}{10}{figure.4}\protected@file@percent }
+\newlabel{fig:zn_vs_tr}{{4}{10}{ZN vs TR Step Response Overlay}{figure.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Detailed Code Analysis}{10}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Interrupt Service Routine (ISR)}{10}{subsection.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}RPM Calculation}{11}{subsection.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Deep Dive: Quadrature Encoder Logic}{11}{section.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}The Phase Shift (Crest and Trough)}{11}{subsection.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}The Lookup Table Implementation}{11}{subsection.10.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {11}Deep Dive: Autotuning Implementation}{12}{section.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.1}The Relay Logic (Forcing Oscillation)}{12}{subsection.11.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.2}Cycle Detection (Zero Crossing)}{13}{subsection.11.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.3}Peak/Trough Tracking}{13}{subsection.11.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.4}Gain Calculation (The "Magic")}{13}{subsection.11.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {12}Conclusion}{14}{section.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {13}References}{15}{section.13}\protected@file@percent }
+\gdef \@abspage@last{15}
